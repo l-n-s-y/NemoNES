@@ -14,12 +14,13 @@ KB = 1024
 TWO_KB = 2048
 
 
-def main():
+def main(rom_dump):
     size = (256,240)
     #screen = pygame.display.set_mode(size)
 
     # 1.79 MHz (1.79mil / sec)
     cpu = CPU.CPU()
+    cpu.load_cart(rom_dump)
 
     while True:
         if not cpu.cycle():
@@ -33,6 +34,6 @@ if __name__ == "__main__":
         print(f"Usage: {sys.argv[0]} [rom]")
         exit()
 
-    
+    rom_dump = twoA03.disassemble(sys.argv[1])
 
-    main()
+    main(rom_dump)

@@ -11,11 +11,6 @@ KB = 1024
 TWO_KB = 2048
 
 
-#### DEBUG ####
-ROM_DUMP = "..\ines_mapper\smb.nes.prg"
-###############
-
-
 class CPU:
     def __init__(self):
         self.ram_start = 0x0000
@@ -61,7 +56,8 @@ class CPU:
         self.Y = 0
         self.A = 0
 
-        self.PC = 0xFFFC
+        #self.PC = 0xFFFC
+        self.PC = 0x8000
         #self.PC = 0
 
         self.flags = {
@@ -81,7 +77,7 @@ class CPU:
 
         # DEBUG #
         #self.load_cart(ROM_DUMP)
-        self.load_cart(twoA03.disassemble(ROM_DUMP))
+        #self.load_cart(twoA03.disassemble(ROM_DUMP))
         #########
 
 
@@ -110,16 +106,32 @@ class CPU:
             return False
 
 
-        op = self.read(self.PC)
-        if op == -1:
+        #op = self.read(self.PC)
+        op_byte = hexd(self.read(self.PC),pad=True)
+
+        if op_byte == -1:
             dbgerr(f"[CPU] Invalid opcode (cycles:{self.PC}).\nAborting...")
             return False
-        self.PC += 1
 
-        self.cycles += 1
+
+        # Parse opcode
+        set_id = op_byte[0]
+        op_id = op_byte[1]
+        op = twoA03.generate_opcode(set_id,op_id)
+        print(op.mnemonic)
+
+        #print(twoA03.generate_opcode())
+        self.execute(op)
 
         return True
     
+    def execute(self,op):
+
+
+        self.cycles += 1
+        self.PC += 1
+        pass
+
     
     def read(self,addr):
         if not self.ram_initialised:
@@ -160,14 +172,19 @@ class CPU:
             dbgerr(f"[WRITE] Access violation @ [{addr}]. (RAM mirror space).")
             return False
 
-        # write to CPU RAM
+        # CPU RAM
         #if addr >= self.ram_start and addr < self.ram_start+self.ram_size:
         if addr >= self.ram_start and addr <= self.ram_end:
             self.ram[addr] = value
             for i in range(1,4): # mirror RAM
                 self.ram[addr+(i*TWO_KB)] = value
     
-            return True
+
+        # Cartridge ROM
+        if addr >= self.cart_rom_start and addr <= self.cart_rom_end:
+            self.ram[addr] = value
+    
+        return True
 
         # write to PPU registers
         #if addr >= self.ppu_registers_start and addr < self.ppu_registers_start+self.ppu_registers:
@@ -178,9 +195,8 @@ class CPU:
         raw_rom = mapper.map_rom_from_opcode_dump(rom_dump)
         dbglog("[LOAD] Mapping cart ROM...")
         for i in range(len(raw_rom)):
-            print(debug.hexd(len(raw_rom),pad=True))
+            if i+0x8000 >= 0xFFFF: break
             self.write(0x8000+i,raw_rom[i]);
-            self.read(0x8000+i)
         self.rom_initialised = True
 
     def init_ram(self):
