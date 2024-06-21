@@ -2,12 +2,18 @@ import sys
 
 sys.path.append("..\\2a03_dissassembler")
 import twoA03
+import mapper
 from debug import *
 
 OPCODE_FILE = "raw_opcodes.txt"
 
 KB = 1024
 TWO_KB = 2048
+
+
+#### DEBUG ####
+ROM_DUMP = "..\ines_mapper\smb.nes.prg"
+###############
 
 
 class CPU:
@@ -71,6 +77,14 @@ class CPU:
         self.ram_initialised = False
         self.init_ram()
 
+        self.rom_initialised = False
+
+        # DEBUG #
+        #self.load_cart(ROM_DUMP)
+        self.load_cart(twoA03.disassemble(ROM_DUMP))
+        #########
+
+
         self.opcodes = twoA03.parse_opcodes_from_file(OPCODE_FILE)
 
     def cycle(self):
@@ -91,11 +105,15 @@ class CPU:
 
 
         """
+        if not self.rom_initialised:
+            dbgerr(f"[CPU] ROM not initialised. Load a cart dump.")
+            return False
+
+
         op = self.read(self.PC)
         if op == -1:
-            dbgerr(f"[CYCLE] Invalid opcode (cycles:{self.PC}). Aborting...")
+            dbgerr(f"[CPU] Invalid opcode (cycles:{self.PC}).\nAborting...")
             return False
-        print(op)
         self.PC += 1
 
         self.cycles += 1
@@ -155,10 +173,15 @@ class CPU:
         #if addr >= self.ppu_registers_start and addr < self.ppu_registers_start+self.ppu_registers:
         #    self.ram[addr] = value
 
-
-    def load_cart_rom(self,rom_dump):
-
-        pass
+    def load_cart(self,rom_dump):
+        self.rom = rom_dump
+        raw_rom = mapper.map_rom_from_opcode_dump(rom_dump)
+        dbglog("[LOAD] Mapping cart ROM...")
+        for i in range(len(raw_rom)):
+            print(hex(0x8000+i),hex(len(raw_rom)+0x8000))
+            self.write(0x8000+i,raw_rom[i]);
+            self.read(0x8000+i)
+        self.rom_initialised = True
 
     def init_ram(self):
         self.ram = bytearray([0 for _ in range(0xffff)])
