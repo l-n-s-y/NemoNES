@@ -178,7 +178,7 @@ class CPU:
         raw_rom = mapper.map_rom_from_opcode_dump(rom_dump)
         dbglog("[LOAD] Mapping cart ROM...")
         for i in range(len(raw_rom)):
-            print(hex(0x8000+i),hex(len(raw_rom)+0x8000))
+            print(debug.hexd(len(raw_rom),pad=True))
             self.write(0x8000+i,raw_rom[i]);
             self.read(0x8000+i)
         self.rom_initialised = True
