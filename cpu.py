@@ -117,20 +117,59 @@ class CPU:
         # Parse opcode
         set_id = op_byte[0]
         op_id = op_byte[1]
+        print(op_byte,hexd(self.PC))
         op = twoA03.generate_opcode(set_id,op_id)
-        print(op.mnemonic)
+        op_arg_count = op.get_arg_size()
+
+        ins = twoA03.instruction(op,self.read_bytes(self.PC+1,op_arg_count))
 
         #print(twoA03.generate_opcode())
-        self.execute(op)
+        #self.execute(op,op_arg_count)
+        self.execute(ins)
 
         return True
     
-    def execute(self,op):
+    def execute(self,instruction):
+        opc = instruction.op.opcode
+        mnem = instruction.op.mnemonic
+        dbglog(f"[EXEC] {mnem}")
+        
+        # ADC #
+        if opc == 0x69: # imm
+            a = self.A + instruction.args[0] + self.flags["C"]
+            self.flags["C"] = 0
+            if a > 0xFF: # carry
+                a &= 0xFF
+                self.flags["C"] = 1
+            self.A = a
+            self.cycles += 2
+            return
+
+        if opc == 0x65:
+            # 
+            a = self.A + self.read(instruction.args[0]) + self.flags["C"]
+            self.flags["C"] = 0
+            if a > 0xFF: # carry
+                a &= 0xFF
+                self.flags["C"] = 1
+            self.A = a
+            self.cycles += 3
+        # END ADC #
 
 
-        self.cycles += 1
-        self.PC += 1
-        pass
+        #if mnem == "SEI":
+        # SEI #
+        if opc == 0x78:
+            self.flags["I"] = 1
+            self.cycles += 2
+            self.PC += len(instruction.args)+1
+            return
+        # END SEI #
+
+
+        # CATCH ALL #
+        self.PC += 2
+        
 
     
     def read(self,addr):
@@ -145,16 +184,16 @@ class CPU:
         return self.ram[addr]
 
 
-    def read_range(self,addr,size):
+    def read_bytes(self,start_addr,bytecount):
         if not self.ram_initialised:
             dbgerr("[READRANGE] RAM not initialised.")
             return -1
 
-        if addr < 0x0 or addr >= 0xFFFF:
-            dbgerr(f"[READRANGE] Out-of-bounds @ [{addr}].")
+        if start_addr < 0x0 or start_addr >= 0xFFFF:
+            dbgerr(f"[READRANGE] Out-of-bounds @ [{start_addr}].")
             return -1
 
-        return self.ram[addr:addr+size]
+        return self.ram[start_addr:start_addr+bytecount]
         
 
     def write(self,addr,value):
@@ -195,7 +234,9 @@ class CPU:
         raw_rom = mapper.map_rom_from_opcode_dump(rom_dump)
         dbglog("[LOAD] Mapping cart ROM...")
         for i in range(len(raw_rom)):
-            if i+0x8000 >= 0xFFFF: break
+            if i+0x8000 >= 0xFFFF: 
+                dbgerr(f"[LOAD_CART] parsed PRG is too big")
+                break
             self.write(0x8000+i,raw_rom[i]);
         self.rom_initialised = True
 
