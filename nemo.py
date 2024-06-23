@@ -1,7 +1,7 @@
 import sys,time,pygame
 
 sys.path.append("..//ines_mapper//")
-sys.path.append("../2a03_dissassembler//")
+sys.path.append("../2a03_disassembler//")
 
 import ines_mapper
 import twoA03
